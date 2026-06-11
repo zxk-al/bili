@@ -75,13 +75,35 @@ def download_with_retry(url, retries=3, chunk_size=1024*1024):
                 continue
             raise e
 
-# ----------------- 页面主体 -----------------
+# ----------------- 纯白界面样式 -----------------
 st.markdown("""
 <style>
-h1 {text-align: center; color: #fb7299;}
+/* 全局背景改为白色 */
+body, .stApp, .css-18e3th9, .css-1lcbmhc, .css-1d391kg {
+    background-color: #FFFFFF !important;
+    color: #333333 !important;
+}
+
+/* 输入框、按钮、卡片的背景改为白色 */
+.stTextInput > div > div, .stButton > button, .stDownloadButton > button, .stAlert {
+    background-color: #FFFFFF !important;
+    border-color: #E0E0E0 !important;
+    color: #333333 !important;
+}
+
+/* 标题颜色改为深色，适配白色背景 */
+h1, h2, h3, h4, h5, h6 {
+    color: #222222 !important;
+}
+
+/* 提示信息文字颜色 */
+.stInfo, .stWarning, .stSuccess, .stError {
+    color: #333333 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
+# ----------------- 页面主体 -----------------
 st.title("📺 B站原画质视频解析下载")
 st.divider()
 
