@@ -84,6 +84,19 @@ h1, h2, h3, h4, h5, h6 {
     background-color: #f8f8f8 !important;
     color: #000000 !important;
 }
+/* 跳转链接按钮样式 */
+.jump-btn a {
+    display: inline-block;
+    padding: 8px 24px;
+    background: #2d8cf0;
+    color: #ffffff !important;
+    text-decoration: none;
+    border-radius: 4px;
+    margin: 10px 0;
+}
+.jump-btn a:hover {
+    background: #1b76d8;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -122,11 +135,18 @@ if st.button("开始解析", type="primary", use_container_width=True):
                 else:
                     st.error(f"❌ {v_name}")
 
-# 展示直链 + 下载指引
+# 解析完成区域：直链 + 一键跳转按钮
 if st.session_state.video_url:
-    st.text("视频直链（复制后浏览器打开下载）：")
+    st.text("视频直链：")
     st.code(st.session_state.video_url)
-    st.info("💡 使用方法：复制上方链接 → 浏览器新标签页打开 → 右键「另存为」即可高速下载")
+
+    # 一键跳转新标签页
+    st.markdown(
+        f'<div class="jump-btn"><a href="{st.session_state.video_url}" target="_blank">🔗 点击跳转至视频页面</a></div>',
+        unsafe_allow_html=True
+    )
+
+    st.info("💡 操作：打开页面后，右键视频 → 选择「另存为」即可下载")
 
 st.divider()
 st.info("温馨提示：本工具仅用于个人学习、本地备份，请勿侵权传播视频内容。")
