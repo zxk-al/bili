@@ -4,21 +4,21 @@ import os
 import re
 from urllib.parse import urlparse
 
-# 配置
+# 基础配置
 SAVE_DIR = "download"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
-# 请求头
+# 请求头（解决B站防盗链）
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0.0.0 Safari/537.36",
     "Referer": "https://www.bilibili.com/"
 }
 
-# 过滤非法文件名
+# 清理非法文件名
 def safe_filename(name):
     return re.sub(r'[\\/*?:"<>|]', "", name)
 
-# 提取 B 站 BV 号
+# 提取B站 BV 号
 def extract_bvid(url):
     patterns = [
         r'BV[0-9a-zA-Z]+',
@@ -31,7 +31,7 @@ def extract_bvid(url):
             return m.group(0)
     return None
 
-# 解析 B 站视频直链
+# 解析B站视频
 def parse_bilibili(bvid):
     try:
         info_api = f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}"
@@ -45,7 +45,7 @@ def parse_bilibili(bvid):
         aid = data["data"]["aid"]
         title = data["data"]["title"]
 
-        # 获取播放地址（原画质）
+        # 80 = 高清原画质
         play_api = f"https://api.bilibili.com/x/player/playurl?avid={aid}&cid={cid}&qn=80&type=mp4"
         play_resp = requests.get(play_api, headers=HEADERS, timeout=15)
         play_data = play_resp.json()
@@ -77,36 +77,69 @@ def download_video(video_url):
     except Exception as e:
         return False, str(e), ""
 
-# ================= Streamlit 页面 =================
-st.set_page_config(page_title="B站视频解析下载", layout="wide")
-st.title("📺 B站 原画质视频解析下载工具")
-st.divider()
+# ========== Streamlit 页面样式 & 布局 ==========
+st.set_page_config(
+    page_title="B站视频下载工具",
+    page_icon="📺",
+    layout="centered"
+)
 
-url_input = st.text_input("请粘贴 B 站视频链接（支持 b23.tv 短链接）")
+# 自定义 CSS 美化（模拟 HTML 网页风格）
+st.markdown("""
+<style>
+.main {
+    background-color: #f7f8fa;
+}
+.stTextInput > div > div > input {
+    font-size: 16px;
+    padding: 10px;
+}
+h1 {
+    text-align: center;
+    color: #fb7299;
+}
+</style>
+""", unsafe_allow_html=True)
 
-if st.button("开始解析", type="primary"):
-    link = url_input.strip()
+# 页面主体
+st.title("📺 B站原画质视频解析下载")
+st.markdown("---")
+
+url = st.text_input("请粘贴 B站链接 / b23.tv 短链接", placeholder="例如：https://www.bilibili.com/video/BVxxxx/")
+
+col1, col2 = st.columns([1, 1])
+with col1:
+    parse_btn = st.button("开始解析", type="primary", use_container_width=True)
+
+# 状态变量
+if "real_url" not in st.session_state:
+    st.session_state.real_url = ""
+
+if parse_btn:
+    link = url.strip()
     if not link:
-        st.warning("请输入视频链接！")
+        st.warning("⚠️ 请输入视频链接")
     else:
         with st.spinner("正在解析视频..."):
             bvid = extract_bvid(link)
             if not bvid:
-                st.error("❌ 未识别到有效 B 站链接，请检查链接是否正确")
+                st.error("❌ 未识别到有效B站链接，请检查")
             else:
                 real_url, msg = parse_bilibili(bvid)
                 if real_url:
                     st.success(f"✅ {msg}")
-                    st.text_input("视频直链", value=real_url, disabled=True)
+                    st.session_state.real_url = real_url
+                    st.text_input("视频直链（可复制）", value=real_url, disabled=True)
 
-                    with st.spinner("正在下载视频，请稍候..."):
+                    # 自动开始下载
+                    with st.spinner("正在下载视频..."):
                         ok, path, fname = download_video(real_url)
                         if ok:
-                            st.success(f"🎉 下载完成！文件已保存：{path}")
+                            st.success(f"🎉 下载完成！文件路径：{path}")
                         else:
                             st.error(f"❌ 下载失败：{path}")
                 else:
                     st.error(f"❌ {msg}")
 
-st.divider()
-st.info("温馨提示：本工具仅用于个人学习、本地备份，请勿用于侵权传播。")
+st.markdown("---")
+st.info("💡 温馨提示：仅用于个人学习与本地备份，请勿侵权传播视频内容。")
