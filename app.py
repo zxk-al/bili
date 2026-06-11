@@ -10,7 +10,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# 请求头（必须带Referer，否则403）
+# 请求头（绕过B站防盗链）
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0.0.0 Safari/537.36",
     "Referer": "https://www.bilibili.com/"
@@ -29,7 +29,7 @@ def extract_bvid(url: str):
             return match.group(0)
     return None
 
-# 解析直链
+# 解析视频直链
 def parse_bilibili(bvid: str):
     try:
         info_api = f"https://api.bilibili.com/x/web-interface/view?bvid={bvid}"
@@ -56,17 +56,52 @@ def parse_bilibili(bvid: str):
     except Exception as e:
         return None, f"解析异常：{str(e)}"
 
-# 纯白黑字样式
+# 纯白背景 + 黑色字体 样式
 st.markdown("""
 <style>
-body, .stApp { background: #fff; color: #000; }
-.stTextInput>div>div>input { color: #000; background: #fff; }
-.stButton>button { background: #fff; border: 1px solid #ddd; color: #000; }
-h1, h2, h3 { color: #000; }
+body, .stApp, .css-18e3th9, .css-1lcbmhc, .css-1d391kg {
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+}
+.stTextInput > div > div > input {
+    color: #000000 !important;
+    background-color: #FFFFFF !important;
+}
+.stTextInput > div > div > input::placeholder {
+    color: #444444 !important;
+}
+.stButton > button {
+    background-color: #FFFFFF !important;
+    border-color: #E0E0E0 !important;
+    color: #000000 !important;
+}
+h1, h2, h3, h4, h5, h6 {
+    color: #000000 !important;
+}
+.stInfo, .stWarning, .stSuccess, .stError {
+    color: #000000 !important;
+}
+.stCode > div {
+    background-color: #f8f8f8 !important;
+    color: #000000 !important;
+}
+.download-btn a {
+    display: inline-block;
+    padding: 8px 24px;
+    background: #2d8cf0;
+    color: #ffffff !important;
+    text-decoration: none;
+    border-radius: 4px;
+    margin: 10px 0;
+}
+.download-btn a:hover {
+    background: #1b76d8;
+}
 </style>
 """, unsafe_allow_html=True)
 
-st.title("📺 B站原画质解析（可播可下）")
+# 页面主体
+st.title("📺 B站原画质视频解析下载")
 st.divider()
 
 # 会话状态
@@ -75,50 +110,55 @@ if "video_url" not in st.session_state:
 if "video_name" not in st.session_state:
     st.session_state.video_name = ""
 
-input_url = st.text_input("粘贴B站链接/b23.tv", placeholder="https://www.bilibili.com/video/BVxxxx/")
+# 链接输入
+input_url = st.text_input(
+    "粘贴B站链接 / b23.tv 短链接",
+    placeholder="https://www.bilibili.com/video/BVxxxx/"
+)
 
+# 解析按钮
 if st.button("开始解析", type="primary", use_container_width=True):
     link = input_url.strip()
     if not link:
-        st.warning("⚠️ 请输入链接")
+        st.warning("⚠️ 请输入视频链接")
     else:
-        with st.spinner("解析中..."):
+        with st.spinner("正在解析..."):
             bvid = extract_bvid(link)
             if not bvid:
-                st.error("❌ 未识别BV号")
+                st.error("❌ 未识别到有效B站链接")
             else:
                 v_url, v_name = parse_bilibili(bvid)
                 if v_url:
-                    st.success(f"✅ {v_name}")
+                    st.success(f"✅ 解析成功：{v_name}")
                     st.session_state.video_url = v_url
                     st.session_state.video_name = v_name
                 else:
                     st.error(f"❌ {v_name}")
 
-# 解析成功：内嵌播放 + 一键下载
+# 解析完成：直链 + 一键下载按钮
 if st.session_state.video_url:
-    st.text("🔗 视频直链（5–30分钟有效）：")
+    st.text("视频直链（5-30分钟内有效）：")
     st.code(st.session_state.video_url)
 
-    # 1. 内嵌播放器（带Referer，直接播放）
-    st.text("▶️ 在线播放（直接看，无需跳转）：")
-    st.video(st.session_state.video_url)  # Streamlit内部请求会带合法Referer
-
-    # 2. 一键下载按钮（Base64触发下载，不跳页）
+    # 生成下载按钮
     try:
-        resp = requests.get(st.session_state.video_url, headers=HEADERS, stream=True, timeout=10)
+        # 拉取视频数据（带Referer，绕过防盗链）
+        resp = requests.get(st.session_state.video_url, headers=HEADERS, stream=True, timeout=30)
         resp.raise_for_status()
-        # 转base64供前端下载
-        b64 = base64.b64encode(resp.content).decode()
-        href = f'data:video/mp4;base64,{b64}'
+
+        # 转base64，供前端下载
+        video_data = resp.content
+        b64_data = base64.b64encode(video_data).decode()
+        download_link = f"data:video/mp4;base64,{b64_data}"
+
         st.markdown(
-            f'<a href="{href}" download="{st.session_state.video_name}.mp4" style="display:inline-block;padding:8px 24px;background:#2d8cf0;color:#fff;border-radius:4px;text-decoration:none;margin:10px 0;">⬇️ 一键下载视频</a>',
+            f'<div class="download-btn"><a href="{download_link}" download="{st.session_state.video_name}.mp4">⬇️ 点击下载视频</a></div>',
             unsafe_allow_html=True
         )
+        st.info("💡 提示：点击按钮直接下载视频到本地，无需跳转页面")
     except Exception as e:
-        st.error(f"下载准备失败：{str(e)}")
-
-    st.info("💡 提示：直链短期有效，失效请重新解析；禁止侵权传播")
+        st.error(f"❌ 下载准备失败：{str(e)}")
+        st.info("💡 备用方案：复制上方直链，用浏览器打开后右键「另存为」下载")
 
 st.divider()
-st.info("仅用于个人学习/本地备份，请勿商用")
+st.info("温馨提示：本工具仅用于个人学习、本地备份，请勿侵权传播视频内容。")
