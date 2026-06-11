@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import re
 from io import BytesIO
+import time
 
 # 配置页面
 st.set_page_config(
@@ -56,6 +57,24 @@ def parse_bilibili(bvid: str):
     except Exception as e:
         return None, f"解析异常：{str(e)}"
 
+# 带重试的视频流拉取（解决连接断开）
+def download_with_retry(url, retries=3, chunk_size=1024*1024):
+    for attempt in range(retries):
+        try:
+            resp = requests.get(url, stream=True, headers=HEADERS, timeout=120)
+            resp.raise_for_status()
+            buffer = BytesIO()
+            for chunk in resp.iter_content(chunk_size=chunk_size):
+                if chunk:
+                    buffer.write(chunk)
+            buffer.seek(0)
+            return buffer
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.ChunkedEncodingError) as e:
+            if attempt < retries - 1:
+                time.sleep(2)  # 失败后等待2秒重试
+                continue
+            raise e
+
 # ----------------- 页面主体 -----------------
 st.markdown("""
 <style>
@@ -97,21 +116,13 @@ if st.button("开始解析", type="primary", use_container_width=True):
                 else:
                     st.error(f"❌ {title}")
 
-# 解析成功后，生成下载按钮（预加载到内存流）
+# 解析成功后，生成下载按钮（带重试）
 if st.session_state.video_url:
     try:
-        with st.spinner("正在准备下载，请稍候..."):
-            # 拉取视频流到内存（兼容Streamlit下载按钮）
-            resp = requests.get(st.session_state.video_url, stream=True, headers=HEADERS, timeout=120)
-            resp.raise_for_status()
+        with st.spinner("正在准备下载，若网络不稳定会自动重试..."):
+            buffer = download_with_retry(st.session_state.video_url)
 
-            buffer = BytesIO()
-            for chunk in resp.iter_content(chunk_size=1024*1024):
-                if chunk:
-                    buffer.write(chunk)
-            buffer.seek(0)
-
-            # 标准下载按钮，不会报错
+            # 标准下载按钮
             st.download_button(
                 label="🔽 下载视频",
                 data=buffer,
@@ -120,8 +131,11 @@ if st.session_state.video_url:
                 type="primary",
                 use_container_width=True
             )
+            st.info("💡 提示：如果下载失败，可以复制下面的直链，在浏览器新标签页打开，右键「另存为」下载")
+            st.code(st.session_state.video_url)
     except Exception as e:
         st.error(f"❌ 下载准备失败：{str(e)}")
+        st.info("💡 备用方案：复制上面的视频直链，在浏览器新标签页打开，右键「另存为」即可下载")
 
 st.divider()
-st.info("💡 温馨提示：本工具仅用于个人学习、本地备份，请勿侵权传播视频内容。")
+st.info("温馨提示：本工具仅用于个人学习、本地备份，请勿侵权传播视频内容。")
