@@ -75,30 +75,45 @@ def download_with_retry(url, retries=3, chunk_size=1024*1024):
                 continue
             raise e
 
-# ----------------- 纯白界面样式 -----------------
+# ----------------- 纯白背景 + 黑色字体样式 -----------------
 st.markdown("""
 <style>
-/* 全局背景改为白色 */
+/* 全局背景白色，全局文字黑色 */
 body, .stApp, .css-18e3th9, .css-1lcbmhc, .css-1d391kg {
     background-color: #FFFFFF !important;
-    color: #333333 !important;
+    color: #000000 !important;
 }
 
-/* 输入框、按钮、卡片的背景改为白色 */
-.stTextInput > div > div, .stButton > button, .stDownloadButton > button, .stAlert {
+/* 输入框文字、占位符 黑色 */
+.stTextInput > div > div > input {
+    color: #000000 !important;
+    background-color: #FFFFFF !important;
+}
+.stTextInput > div > div > input::placeholder {
+    color: #444444 !important;
+}
+
+/* 按钮样式 */
+.stButton > button, .stDownloadButton > button {
     background-color: #FFFFFF !important;
     border-color: #E0E0E0 !important;
-    color: #333333 !important;
+    color: #000000 !important;
 }
 
-/* 标题颜色改为深色，适配白色背景 */
+/* 标题黑色 */
 h1, h2, h3, h4, h5, h6 {
-    color: #222222 !important;
+    color: #000000 !important;
 }
 
-/* 提示信息文字颜色 */
+/* 各类提示框文字黑色 */
 .stInfo, .stWarning, .stSuccess, .stError {
-    color: #333333 !important;
+    color: #000000 !important;
+}
+
+/* 代码框背景+文字 */
+.stCode > div {
+    background-color: #f8f8f8 !important;
+    color: #000000 !important;
 }
 </style>
 """, unsafe_allow_html=True)
